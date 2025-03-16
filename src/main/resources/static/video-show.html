@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video List</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .video-card { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
+        .video-card h3 { margin: 0; }
+        .video-card p { margin: 5px 0; }
+        .video-card iframe { margin-top: 10px; width: 70%; height: 300px; }
+        .like-button, .add-button { margin-top: 5px; padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        #add-video-form { margin-bottom: 20px; }
+        #add-video-form input, #add-video-form textarea { padding: 5px; margin: 5px 0; width: 100%; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<h1>Video List</h1>
+
+<div id="add-video-form">
+    <label for="video-title"></label><input type="text" id="video-title" placeholder="Video Title"><br>
+    <label for="video-description"></label><textarea id="video-description" placeholder="Video Description"></textarea><br>
+    <label for="video-url"></label><input type="text" id="video-url" placeholder="Video URL (YouTube link)"><br>
+    <button class="add-button" onclick="addVideo()">Add Video</button>
+</div>
+
+<div id="video-list"></div>
+
+<script>
+    $(document).ready(function () {
+        fetchVideoData();
+    });
+
+    function fetchVideoData() {
+        $.ajax({
+            url: '/getAll',
+            method: 'GET',
+            success: function (videos) {
+                displayVideos(videos);
+            },
+            error: function () {
+                console.error('Failed to fetch video data');
+            }
+        });
+    }
+
+    function displayVideos(videos) {
+        const videoList = $('#video-list');
+        videoList.empty();
+
+        videos.forEach(video => {
+            const videoUrl = video.url ? video.url.replace('watch?v=', 'embed/') : '';
+
+            const videoCard = $(
+                `<div class="video-card">
+                        <h3>${video.title || 'No Title Available'}</h3>
+                        <p>${video.description || 'No Description Available'}</p>
+                        <p><strong>Likes:</strong> <span id="like-count-${video.id}">${video.numberLikes}</span></p>
+                        ${videoUrl ? `<iframe src="${videoUrl}" frameborder="0" allowfullscreen></iframe>` : '<p>No Video Available</p>'}
+                        <button class="like-button" onclick="likeVideo(${video.id})">Like</button>
+                    </div>`
+            );
+
+            videoList.append(videoCard);
+        });
+    }
+
+    function likeVideo(videoId) {
+        $.ajax({
+            url: `/api/videos/${videoId}/like`,
+            method: 'POST',
+            contentType: 'application/json',
+            success: function () {
+                const likeCountElement = $(`#like-count-${videoId}`);
+                const currentLikes = parseInt(likeCountElement.text()) || 0;
+                likeCountElement.text(currentLikes + 1);
+            },
+            error: function () {
+                console.error('Failed to like the video');
+            }
+        });
+    }
+
+    function addVideo() {
+        const title = $('#video-title').val();
+        const description = $('#video-description').val();
+        const url = $('#video-url').val();
+
+        if (!title || !url) {
+            alert('Please provide both title and URL.');
+            return;
+        }
+
+        const newVideo = {
+            title: title,
+            description: description,
+            url: url
+        };
+
+        $.ajax({
+            url: '/video/save',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(newVideo),
+            success: function () {
+                fetchVideoData();
+                $('#video-title').val('');
+                $('#video-description').val('');
+                $('#video-url').val('');
+            },
+            error: function () {
+                console.error('Failed to add the video');
+            }
+        });
+    }
+</script>
+</body>
+</html>
